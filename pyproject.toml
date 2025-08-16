@@ -1,0 +1,49 @@
+# --------------------------------------------------------------------
+# pyproject.toml
+#
+# Purpose:
+# Centralized configuration for Python packaging, tools, and testing.
+# - Defines how the project is built and packaged
+# - Holds formatting/linting configs for Black & isort
+# - Holds pytest & coverage settings
+# --------------------------------------------------------------------
+
+[build-system]
+# Build requirements for the package
+requires = ["setuptools>=68"]             # Use setuptools 68+ for packaging
+build-backend = "setuptools.build_meta"   # Default backend for setuptools builds
+
+[project]
+# Package metadata
+name = "apps"                             # Package name (installable via pip)
+version = "0.1.0"                         # Package version
+requires-python = ">=3.10"                # Minimum Python version
+description = "CI/CD lab with tests and flake8"   # Short project description
+readme = "README.md"                       # README file for package description
+
+[tool.setuptools]
+# Specify source directory for packages
+package-dir = {"" = "src"}                 # All Python packages are inside src/
+
+[tool.setuptools.packages.find]
+# Auto-discover packages from the src directory
+where = ["src"]
+
+[tool.black]
+# Black formatter configuration
+line-length = 88                           # Max line length
+target-version = ['py310']                 # Target Python version 3.10
+skip-string-normalization = true           # Preserve original string quotes
+
+[tool.isort]
+# isort import sorter configuration
+profile = "black"                          # Match Black’s import style
+line_length = 88                           # Same line length as Black
+
+# pytest configuration
+# --cov=src               measure coverage for src/
+# --cov-report=term-missing shows missing lines inline
+# --cov-report=xml        produce coverage.xml (for CI upload)
+# --cov-fail-under=80     fail if coverage drops below 80%
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=80"

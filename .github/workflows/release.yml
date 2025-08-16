@@ -1,0 +1,14 @@
+name: Release (demo)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  echo-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say hello
+        run: |
+          echo "Release pipeline triggered for tag ${{ github.ref }}"

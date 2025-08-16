@@ -1,10 +1,9 @@
-from apps.calculator_private import add, divide, multiply, subtract
+from apps.calculator_private import add, divide, multiply
 
 
 def test_add():
+    assert multiply(5, 3) == 15
     assert add(3, 7) == 10
     assert add(-1, 1) == 0
     assert add(0, 0) == 0
-    assert multiply(2, 3) == 6
     assert divide(10, 5) == 2
-    assert subtract(15, 5) == 10

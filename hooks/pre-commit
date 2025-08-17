@@ -16,7 +16,7 @@ if [[ -f ".venv/bin/activate" ]]; then
   source ".venv/bin/activate"
 fi
 
-# Block TODOs in staged diff, excluding tooling paths
+# 2) Block TODOs in staged diff, excluding tooling paths
 if git diff --cached -- . ':(exclude)hooks/**' ':(exclude).github/**' ':(exclude)scripts/**' \
    | grep -qiE '(^|[[:space:]])TODO([[:space:]]|:|$)'; then
   echo "❌ Commit blocked: staged changes contain 'TODO' (code only)"

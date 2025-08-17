@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# pre-push: run relevant checks before sending code to remote
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
+set -euo pipefail
+IFS=$'\n\t'
+
+# Prefer local venv
+if [[ -f ".venv/bin/activate" ]]; then
+  # shellcheck source=/dev/null
+  source ".venv/bin/activate"
+fi
+
+echo "🚦 pre-push: scanning outgoing changes..."
+
+# Determine diff range against upstream (or initial tree if no upstream)
+UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
+if [[ -n "$UPSTREAM" ]]; then
+  DIFF_RANGE="$UPSTREAM..HEAD"
+else
+  DIFF_RANGE="$(git hash-object -t tree /dev/null)..HEAD"
+fi
+
+# Collect changed paths (Added/Copied/Modified only)
+mapfile -t CHANGED < <(git diff --name-only --diff-filter=ACM "$DIFF_RANGE")
+
+has_py=false; has_yaml=false; has_tf=false; has_ansible=false
+for f in "${CHANGED[@]}"; do
+  [[ "$f" =~ \.py$ ]] && has_py=true
+  [[ "$f" =~ \.(ya?ml)$ ]] && has_yaml=true
+  [[ "$f" =~ \.tf(vars)?$ ]] && has_tf=true
+  [[ "$f" =~ ^(ansible/|playbooks/|roles/) ]] && has_ansible=true
+done
+
+# 1) Python tests (coverage gate via pyproject addopts)
+if $has_py; then
+  if command -v pytest >/dev/null 2>&1; then
+    echo "🧪 Running pytest (due to Python changes)..."
+    pytest -q
+  else
+    echo "ℹ️ pytest not found; skipping Python tests."
+  fi
+fi
+
+# 2) YAML lint
+if $has_yaml; then
+  if command -v yamllint >/dev/null 2>&1; then
+    echo "📑 yamllint on changed YAML..."
+    # Filter only YAML files from the changed set
+    mapfile -t YAML_FILES < <(printf '%s\n' "${CHANGED[@]}" | grep -E '\.ya?ml$' || true)
+    if ((${#YAML_FILES[@]})); then
+      yamllint -f standard "${YAML_FILES[@]}" || { echo "❌ Push blocked: yamllint failed."; exit 1; }
+    fi
+  else
+    echo "ℹ️ yamllint not installed; skipping YAML lint."
+  fi
+fi
+
+# 3) Terraform checks
+if $has_tf; then
+  if command -v terraform >/dev/null 2>&1; then
+    echo "🌍 terraform fmt -check ..."
+    terraform fmt -recursive -check || { echo "❌ Push blocked: terraform fmt check failed."; exit 1; }
+
+    echo "🔎 terraform validate ..."
+    # Unique module directories containing .tf / .tfvars
+    changed_dirs=()
+    for f in "${CHANGED[@]}"; do
+      if [[ "$f" =~ \.tf(vars)?$ ]]; then
+        d="$(dirname "$f")"
+        # add if not present
+        already=false
+        for e in "${changed_dirs[@]}"; do [[ "$e" == "$d" ]] && already=true && break; done
+        $already || changed_dirs+=("$d")
+      fi
+    done
+    for d in "${changed_dirs[@]}"; do
+      # init without touching backend; then validate
+      terraform -chdir="$d" init -backend=false -input=false -no-color >/dev/null 2>&1 || true
+      terraform -chdir="$d" validate -no-color || { echo "❌ Push blocked: terraform validate failed in $d"; exit 1; }
+    done
+  else
+    echo "ℹ️ terraform not installed; skipping TF checks."
+  fi
+fi
+
+# 4) Ansible lint
+if $has_ansible; then
+  if command -v ansible-lint >/dev/null 2>&1; then
+    echo "🧰 ansible-lint on changed Ansible files..."
+    ansible-lint || { echo "❌ Push blocked: ansible-lint failed."; exit 1; }
+  else
+    echo "ℹ️ ansible-lint not installed; skipping Ansible lint."
+  fi
+fi
+
+echo "✅ pre-push checks passed — pushing allowed."
+exit 0

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+MSG_FILE="$1"
+
+first_line="$(head -n1 "$MSG_FILE" | sed 's/[[:space:]]*$//')"
+
+if [[ -z "$first_line" ]]; then
+  echo "❌ Empty commit message not allowed."
+  exit 1
+fi
+
+# Using grep -E (ERE) keeps the regex engine clean & predictable
+if printf '%s\n' "$first_line" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\([^)]+\))?:[[:space:]]'; then
+  exit 0
+fi
+
+if ! printf '%s\n' "$first_line" | grep -Eq '^[A-Z]'; then
+  echo "❌ Commit subject must start with a capital letter (or use Conventional Commits like 'feat: ...')."
+  echo "   Found: \"$first_line\""
+  exit 1
+fi
+
+if printf '%s\n' "$first_line" | grep -Eq '\.$'; then
+  echo "❌ Commit subject must NOT end with a period."
+  echo "   Found: \"$first_line\""
+  exit 1
+fi
+
+if (( ${#first_line} > 72 )); then
+  echo "⚠️  Commit subject longer than 72 chars (recommended to shorten)."
+fi
+
+exit 0

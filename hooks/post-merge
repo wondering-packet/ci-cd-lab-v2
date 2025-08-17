@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -f ".venv/bin/activate" ]]; then
+  # shellcheck source=/dev/null
+  source ".venv/bin/activate"
+fi
+
+# If requirements changed in the last merge, re-install
+if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -qE '(^requirements\.txt$|^pyproject\.toml$)'; then
+  echo "🔁 Detected tooling changes → reinstalling deps..."
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt
+  pip install -e .
+  echo "✅ Tooling refreshed."
+fi

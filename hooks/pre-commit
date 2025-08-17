@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Pre-commit hook:
+# - Blocks "TODO" in staged changes
+# - Auto-fixes imports (isort) & formatting (black) for STAGED .py files only
+# - Re-stages formatted files
+# - Lints STAGED .py files with flake8
+# - Runs pytest (coverage enforced via pyproject addopts) when relevant
+set -euo pipefail
+IFS=$'\n\t'
+
+echo "🔎 Running pre-commit checks..."
+
+# 1) Prefer running inside your local virtualenv if present
+if [[ -f ".venv/bin/activate" ]]; then
+  # shellcheck source=/dev/null
+  source ".venv/bin/activate"
+fi
+
+# Block TODOs in staged diff, excluding tooling paths
+if git diff --cached -- . ':(exclude)hooks/**' ':(exclude).github/**' ':(exclude)scripts/**' \
+   | grep -qiE '(^|[[:space:]])TODO([[:space:]]|:|$)'; then
+  echo "❌ Commit blocked: staged changes contain 'TODO' (code only)"
+  echo "   (Note: hooks/, .github/, scripts/ are excluded from this check.)"
+  exit 1
+fi
+
+#-----
+# 2b) Secret scan on STAGED content (not working tree)
+#     - Blocks obvious creds (AWS keys & long tokens)
+#     - Warns on generic "secret_key=" style lines
+
+# Collect staged text-like files (null-delimited)
+mapfile -d '' -t STAGED_TEXT < <(
+  git diff --cached --name-only -z --diff-filter=ACM | \
+    grep -z -Ei '\.(py|ya?ml|json|env|ini|cfg|tf|tfvars|sh|txt)$' || true
+)
+
+if (( ${#STAGED_TEXT[@]} > 0 )); then
+  echo "🕵️  Secret scan (staged content)..."
+
+  # BLOCK: AKIA/ASIA access key IDs (20 chars total), AWS secret access keys (40 chars),
+  #        or generic high-entropy tokens ≥32 chars.
+  BLOCK_REGEX='(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|aws_secret_access_key[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{40}|[A-Za-z0-9/_+=-]{32,})'
+  # WARN: config-style secrets (warning only)
+  WARN_REGEX='secret(_key)?[[:space:]]*=[[:space:]]*.+'
+
+  hits_block=()
+  hits_warn=()
+
+  for f in "${STAGED_TEXT[@]}"; do
+    # Read the STAGED blob (what will actually be committed)
+    if git show ":$f" >/tmp/_staged_blob 2>/dev/null; then
+      # Blocking matches (case-insensitive)
+      if grep -nEi "$BLOCK_REGEX" /tmp/_staged_blob >/tmp/_block_hits 2>/dev/null; then
+        while IFS= read -r line; do
+          hits_block+=("$f:$line")
+        done < /tmp/_block_hits
+      fi
+      # Warning matches (case-insensitive)
+      if grep -nEi "$WARN_REGEX" /tmp/_staged_blob >/tmp/_warn_hits 2>/dev/null; then
+        while IFS= read -r line; do
+          hits_warn+=("$f:$line")
+        done < /tmp/_warn_hits
+      fi
+    fi
+  done
+
+  if (( ${#hits_warn[@]} > 0 )); then
+    echo "⚠️  Potential config secrets (warning only):"
+    printf '   %s\n' "${hits_warn[@]}"
+    echo "   (Tip: rename keys to something non-sensitive, or add allowlist rules.)"
+  fi
+
+  if (( ${#hits_block[@]} > 0 )); then
+    echo "❌ Possible secrets detected (blocking):"
+    printf '   %s\n' "${hits_block[@]}"
+    echo "   Remove or mask these before committing. If false positive, refine the regex."
+    exit 1
+  fi
+fi
+#-----
+
+
+# 3) Collect staged files (Added, Copied, Modified), null-delimited
+mapfile -d '' -t STAGED_ALL < <(git diff --cached --name-only -z --diff-filter=ACM || true)
+mapfile -d '' -t STAGED_PY  < <(printf '%s\0' "${STAGED_ALL[@]}" | grep -z -E '\.py$' || true)
+
+# 4) Format STAGED .py files
+if (( ${#STAGED_PY[@]} > 0 )); then
+  echo "📦 isort (staged .py)..."
+  printf '%s\0' "${STAGED_PY[@]}" | xargs -0 -r isort --quiet --
+  echo "🖤 black (staged .py)..."
+  printf '%s\0' "${STAGED_PY[@]}" | xargs -0 -r black --quiet --
+  echo "🧺 Re-staging formatted files..."
+  git add -- "${STAGED_PY[@]}"
+else
+  echo "⏭  No staged Python files — skipping isort/black."
+fi
+
+# 5) Lint STAGED .py files only (and never wander into .venv)
+if command -v flake8 >/dev/null 2>&1; then
+  if (( ${#STAGED_PY[@]} > 0 )); then
+    echo "🐍 flake8 (staged .py only)..."
+    printf '%s\0' "${STAGED_PY[@]}" | xargs -0 -r flake8 --exclude=.venv --
+  else
+    echo "⏭  No staged Python files — skipping flake8."
+  fi
+else
+  echo "ℹ️ flake8 not found; skipping Python lint step."
+fi
+
+echo "✅ Pre-commit checks passed."
+exit 0

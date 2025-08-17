@@ -45,10 +45,10 @@ python3 --version
 │   ├── apps/                 # Application code
 │   │   └── calculator_private.py  # App logic for the lab
 │   └── apps.egg-info/        # Auto-generated package metadata (ignore)
-│       ├── dependency_links.txt  
-│       ├── PKG-INFO  
-│       ├── SOURCES.txt  
-│       └── top_level.txt  
+│       ├── dependency_links.txt
+│       ├── PKG-INFO
+│       ├── SOURCES.txt
+│       └── top_level.txt
 └── tests/                   # Unit tests (pytest auto-discovers here)
     └── test_calculate.py     # Tests for calculator app
 ```
@@ -89,11 +89,11 @@ python -m venv .venv
 ```bash
 # requirements file lets us define dependent packages &
 # the exact versions required for our lab.
-cat requirements.txt  
-flake8==7.1.0  
-pytest==8.2.0  
-black==23.9.1  
-isort==5.12.0  
+cat requirements.txt
+flake8==7.1.0
+pytest==8.2.0
+black==23.9.1
+isort==5.12.0
 pytest-cov==5.0.0
 # installs the packages
 pip install -r requirements.txt
@@ -116,8 +116,8 @@ bash scripts/install_hook.sh
 # remove the pre-commit file from hooks/ folder.
 # note that this file has already been copied to .git/hooks.
 
-# if you don't remove this file then your commits later will fail since 
-# this file contains the keyword "TODO" - this keyword is used in the lab 
+# if you don't remove this file then your commits later will fail since
+# this file contains the keyword "TODO" - this keyword is used in the lab
 # to stop commits.
 rm hooks/pre-commit
 ```
@@ -127,11 +127,11 @@ rm hooks/pre-commit
 ```bash
 echo ".venv/" > .gitignore
 # IMPORTANT:
-# the reason we are ignoring the venv folder is because our venv contains 
-# lots of python files (used by python interpreter) which are not part of 
+# the reason we are ignoring the venv folder is because our venv contains
+# lots of python files (used by python interpreter) which are not part of
 # our actual lab so we don't want to lint/format them.
 
-# if you don't do this, then you will likely run into issues because 
+# if you don't do this, then you will likely run into issues because
 # i noticed a lot of venv files fail flake8 checks.
 ```
 
@@ -164,7 +164,7 @@ pytest -q  # -q suppresses noise from the output
 This will fail the run if coverage is below the configured threshold (default **80%**). It also produces a `coverage.xml` report. The 80% config is in our tooling config file:
 
 ```plaintext
-[tool.pytest.ini_options]  
+[tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
 ```
 
@@ -236,10 +236,10 @@ pytest -q
 
 ## 7) Troubleshooting
 
-**Q: `ModuleNotFoundError: No module named 'apps'`**  
+**Q: `ModuleNotFoundError: No module named 'apps'`**
 A: Make sure you ran `pip install -e .` so the `src/` package is discoverable.
 
-**Q: CI fails on formatting**  
+**Q: CI fails on formatting**
 A: Run locally:
 ```bash
 isort .
@@ -247,10 +247,10 @@ black .
 ```
 Commit, push again.
 
-**Q: CI fails on coverage (below 80%)**  
+**Q: CI fails on coverage (below 80%)**
 A: Add or improve tests under `tests/`, or (not recommended) lower the threshold in `pyproject.toml`.
 
-**Q: I don’t see the workflow in GitHub**  
+**Q: I don’t see the workflow in GitHub**
 A: Ensure the file path is exactly `.github/workflows/ci.yml` on the default branch (`main`). Check Actions are enabled in repo settings.
 
 ---

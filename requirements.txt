@@ -5,3 +5,4 @@ isort==5.12.0
 pytest-cov==5.0.0
 hypothesis
 tox
+# bump for hook test

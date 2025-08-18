@@ -15,11 +15,11 @@ repos:
     hooks:
       - id: black
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.9
-    hooks:
-      - id: ruff
-      - id: ruff-format
+#  - repo: https://github.com/astral-sh/ruff-pre-commit
+#    rev: v0.12.9
+#    hooks:
+#      - id: ruff
+#      - id: ruff-format
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.28.0
     hooks:
@@ -31,6 +31,7 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: ["--strict"]
+
   - repo: https://github.com/PyCQA/flake8
     rev: 7.1.0
     hooks:

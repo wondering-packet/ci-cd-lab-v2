@@ -1,1 +1,1 @@
-no newline
+now has a newline

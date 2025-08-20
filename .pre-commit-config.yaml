@@ -41,3 +41,11 @@ repos:
     - id: conventional-pre-commit
       stages: [commit-msg]
       args: ["--strict"]
+
+- repo: local
+  hooks:
+    - id: pytest
+      name: run unit tests
+      stages: [pre-push]
+      entry: bash -c "pytest -q"
+      language: system
